@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Master — Auto‑Analyze Engine</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{--bg:#0b1220;--panel:#111c31;--panel2:#16233d;--line:#25344f;--txt:#e8eef7;--muted:#9fb0c8;--accent:#2f81f7;--good:#22c55e;--bad:#ef4444;--warn:#f59e0b;--purple:#a855f7;--cyan:#06b6d4;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:radial-gradient(1400px 700px at 15% -10%,rgba(47,129,247,.06),transparent),linear-gradient(160deg,#070d18,#0b1220);color:var(--txt);padding:18px;font-size:13px}
+header{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:16px}
+.logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:24px}
+h1{font-size:20px;font-weight:700}.sub{color:var(--muted);font-size:12px;margin-top:2px}
+.wrap{max-width:1200px;margin:0 auto}
+.card{background:linear-gradient(160deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h3{font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px}.card h3 .dot{width:9px;height:9px;border-radius:50%}
+button,input,select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;outline:none}
+button{cursor:pointer;transition:.15s;font-weight:600}button:hover{filter:brightness(1.08)}button:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn-good{background:var(--good);border-color:var(--good);color:#04240f}.btn-ghost{background:var(--panel2)}.btn-purple{background:var(--purple);border-color:var(--purple);color:#fff}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}@media(max-width:900px){.three{grid-template-columns:1fr}}
+.zone{border:2px dashed var(--line);border-radius:12px;padding:18px 14px;text-align:center;transition:.15s;cursor:pointer;background:rgba(255,255,255,.02);position:relative;min-height:150px;display:flex;flex-direction:column;justify-content:center}
+.zone.drag{border-color:var(--accent);background:rgba(47,129,247,.08)}.zone.ok{border-color:rgba(34,197,94,.5);background:rgba(34,197,94,.05)}
+.zone .zi{font-size:30px;margin-bottom:6px}.zone .zt{font-weight:700;font-size:14px}.zone .zd{color:var(--muted);font-size:11px;line-height:1.5;margin-top:4px}
+.zone .zbadge{position:absolute;top:8px;right:8px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--warn);color:#3a2a00}.zone.ok .zbadge{background:var(--good);color:#04240f}
+.zone .zfile{margin-top:8px;font-size:11px;color:#8ec2ff;word-break:break-all}
+.fixed-tag{font-size:9.5px;font-weight:800;padding:1px 7px;border-radius:20px;background:var(--cyan);color:#032a33;margin-left:6px}
+.round-tag{font-size:9.5px;font-weight:800;padding:1px 7px;border-radius:20px;background:var(--purple);color:#fff;margin-left:6px}
+.daterow{display:flex;gap:14px;flex-wrap:wrap;align-items:end;margin-top:12px}.daterow .fld{display:flex;flex-direction:column;gap:4px}.daterow label{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}.actions .spacer{flex:1}
+.status{margin-top:12px;padding:12px 14px;border-radius:10px;font-size:12.5px;display:none;line-height:1.6}
+.status.show{display:block}.status.ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.4);color:#4ade80}.status.err{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.4);color:#f87171}.status.info{background:rgba(47,129,247,.1);border:1px solid rgba(47,129,247,.4);color:#8ec2ff}
+.summary{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:12px 0}@media(max-width:900px){.summary{grid-template-columns:repeat(3,1fr)}}
+.sm{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}.sm .l{color:var(--muted);font-size:9.5px;text-transform:uppercase;letter-spacing:.5px}.sm .v{font-size:18px;font-weight:800;margin-top:3px}
+.tablewrap{overflow:auto;max-height:460px;border-radius:10px;border:1px solid var(--line);display:none}.tablewrap.show{display:block}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px}th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:#122036;z-index:2;font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#b9c6da}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr:nth-child(odd) td{background:rgba(255,255,255,.02)}
+.badge{padding:1px 8px;border-radius:20px;font-size:10px;font-weight:700}.g5{background:rgba(34,197,94,.18);color:#4ade80}.g4{background:rgba(132,204,22,.18);color:#a3e635}.g3{background:rgba(245,158,11,.18);color:#fbbf24}.g2{background:rgba(249,115,22,.2);color:#fb923c}.g1{background:rgba(239,68,68,.2);color:#f87171}
+.note{color:var(--muted);font-size:11.5px;line-height:1.7;margin-top:8px}.note code{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+.cloud-pill{font-size:11px;font-weight:600;padding:4px 11px;border-radius:20px;border:1px solid var(--line);margin-left:auto}.cloud-pill.on{color:#4ade80;border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.1)}.cloud-pill.off{color:#fbbf24;border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.08)}
+.meta-pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}.meta-pill.on{color:#04240f;background:var(--good)}.meta-pill.off{color:#3a2a00;background:var(--warn)}
+.diag{font-size:11px;color:var(--muted);margin-top:8px;display:none}.diag.show{display:block}.diag b{color:#8ec2ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">⚙️</div>
+  <div><h1>Auto‑Analyze Engine <span class="cloud-pill off" id="cloudPill">Cloud: off</span></h1>
+  <div class="sub">Upload <b>Production</b> + <b>Register</b> each round · uses the fixed <b>Meta</b> · <b>only Meta‑listed sites are analyzed</b> · projects to the dashboard</div></div>
+</header>
+
+<div class="card">
+  <h3><span class="dot" style="background:var(--cyan)"></span>Part 1 · Meta Data — Inverter Master <span class="fixed-tag">FIXED · admin‑maintained</span><span class="meta-pill off" id="metaPill" style="margin-left:auto">Not loaded</span></h3>
+  <div class="note" style="margin-top:0">One row per <b>IDC/MPPT</b> (Site · Inverter · IDC · String Per MPPT · Make · DC Capacity). Rows are grouped by inverter automatically. <b>Only these sites are analyzed.</b></div>
+  <div class="three" style="margin-top:10px"><div class="zone" id="zMeta" style="grid-column:1 / -1"><span class="zbadge" id="bMeta">required</span><div class="zi">🗄️</div><div class="zt">Meta Data (.xlsx / .csv)</div><div class="zd">Project Name · Inverter · IDC · String Per MPPT · Inverter Make · DC Capacity</div><div class="zfile" id="fMeta"></div><input type="file" id="fiMeta" accept=".xlsx,.xlsm,.csv" hidden></div></div>
+</div>
+
+<div class="card">
+  <h3><span class="dot" style="background:var(--purple)"></span>Part 2 &amp; 3 · Round Inputs <span class="round-tag">UPLOAD EACH ROUND</span></h3>
+  <div class="three">
+    <div class="zone" id="zProd"><span class="zbadge" id="bProd">required</span><div class="zi">🏭</div><div class="zt">Part 2 · Production</div><div class="zd">Weather Adj. Expectation · Inverter Net · Prod Meter · Capacity · DSD Avail</div><div class="zfile" id="fProd"></div><input type="file" id="fiProd" accept=".xlsx,.xlsm,.csv" hidden></div>
+    <div class="zone" id="zReg"><span class="zbadge" id="bReg">required</span><div class="zi">📊</div><div class="zt">Part 3 · Register</div><div class="zd">Site · Inverter · Date · IDC · IDC 1‑6</div><div class="zfile" id="fReg"></div><input type="file" id="fiReg" accept=".xlsx,.xlsm,.csv" hidden></div>
+    <div class="zone" id="zMppt"><span class="zbadge" id="bMppt" style="background:#3a4c66;color:#cfe0f5">optional</span><div class="zi">📟</div><div class="zt">MPPT Voltage <span style="font-size:9px;color:var(--muted)">(manual)</span></div><div class="zd">Site · Inverter · DC Input · Anomaly text</div><div class="zfile" id="fMppt"></div><input type="file" id="fiMppt" accept=".xlsx,.xlsm,.csv" hidden></div>
+  </div>
+  <div class="daterow">
+    <div class="fld"><label>Round start date</label><input type="date" id="dStart"></div>
+    <div class="fld"><label>Round end date</label><input type="date" id="dEnd"></div>
+    <div class="fld"><label>Round name</label><input type="text" id="rName" placeholder="e.g. 9th Round" style="min-width:180px"></div>
+    <div style="color:var(--muted);font-size:11px;align-self:center">Dates auto‑fill from the register range if left blank.</div>
+  </div>
+  <div class="actions">
+    <button class="btn-primary" id="runBtn">⚙️ Compute Analysis</button>
+    <button class="btn-ghost" id="clearBtn">Reset inputs</button><div class="spacer"></div>
+    <button class="btn-ghost" id="toggleTbl">👁 Preview table</button>
+    <button class="btn-good" id="exportBtn" disabled>⬇ Export Summary (CSV)</button>
+    <button class="btn-purple" id="projectBtn" disabled>▶ Project to Dashboard</button>
+  </div>
+  <div class="status" id="status"></div><div class="diag" id="diag"></div>
+</div>
+
+<div class="card" id="resultCard" style="display:none">
+  <h3><span class="dot" style="background:var(--good)"></span>Computed Summary <span style="color:var(--muted);font-weight:400;font-size:12px" id="resSub"></span></h3>
+  <div class="summary" id="summary"></div>
+  <div class="tablewrap" id="tablewrap"><table id="tbl"><thead><tr><th class="num">Rank</th><th>Site</th><th class="num">DC</th><th class="num">AC</th><th class="num">P/E</th><th class="num">INV/PM</th><th class="num">Grade</th><th class="num">Inv</th><th class="num">DataAv</th><th class="num">InvAv</th><th class="num">BD</th><th class="num">Str</th><th class="num">Comms</th><th class="num">BD Imp</th><th class="num">Str Imp</th><th class="num">Comms Imp</th></tr></thead><tbody id="tbody"></tbody></table></div>
+  <div class="note">⚠️ <b>Validate:</b> P/E = Prod Meter ÷ <b>Weather Adj. Expectation</b> · INV/PM = Inverter Net ÷ Prod Meter · impacts are <b>0 for "Restored"</b> (recovered before round end) and counted only when still down on the last day · string impact = Σ(strings‑down × capacity‑per‑string) ÷ site capacity. Compare a few sites vs Excel before projecting.</div>
+</div>
+</div>
+
+<datalist id="mklist"><option value="CPS"><option value="CPS4"><option value="SMA"><option value="Solectria"><option value="Solectria4"><option value="Solar Edge"></datalist>
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDyOGkKssEqVQC_5pLt3SHG-dkZ-izVY1E",
+  authDomain: "solar-master-2002.firebaseapp.com",
+  databaseURL: "https://solar-master-2002-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "solar-master-2002",
+  appId: "1:772216147587:web:427e59f1cc0f08958015b6"
+};
+let cloudDb=null,cloudReady=false;
+function initCloud(){try{if(FIREBASE_CONFIG.databaseURL&&!/PASTE_/.test(FIREBASE_CONFIG.databaseURL)&&typeof firebase!=='undefined'){firebase.initializeApp(FIREBASE_CONFIG);cloudDb=firebase.database();cloudReady=true;const p=document.getElementById('cloudPill');p.textContent='Cloud: live';p.className='cloud-pill on';}}catch(e){}}
+
+const esc=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const normSite=s=>String(s==null?'':s).toLowerCase().replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g,'-').replace(/\s+/g,' ').trim();
+const normInv=s=>String(s==null?'':s).toLowerCase().replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g,'-').replace(/\(cp\)/g,'').replace(/\s+/g,' ').trim();
+const numv=x=>{let v=parseFloat(String(x==null?'':x).replace(/[,%\s$]/g,''));return isNaN(v)?0:v;};
+function colIndex(ref){const m=/^([A-Z]+)/.exec(ref||'');if(!m)return 0;let n=0;for(const ch of m[1])n=n*26+(ch.charCodeAt(0)-64);return n-1;}
+function parseCSV(text){const rows=[];let row=[],cur='',q=false;for(let i=0;i<text.length;i++){const ch=text[i];if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}else{if(ch==='"')q=true;else if(ch===','){row.push(cur);cur='';}else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';}else if(ch==='\r'){}else cur+=ch;}}if(cur!==''||row.length){row.push(cur);rows.push(row);}return rows;}
+function xlSerial(n){return new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000);}
+function isoDay(dt){return dt.toISOString().slice(0,10);}
+async function readFirstSheet(buf){
+  if(typeof DecompressionStream==='undefined')throw new Error('This browser can’t unzip .xlsx — save as .csv and upload that.');
+  const u8=new Uint8Array(buf),dv=new DataView(buf),dec=new TextDecoder();
+  let eocd=-1;for(let i=u8.length-22;i>=0;i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}if(eocd<0)throw new Error('Not a valid .xlsx file.');
+  const cdCount=dv.getUint16(eocd+10,true),cdOff=dv.getUint32(eocd+16,true);const entries={};let p=cdOff;
+  for(let i=0;i<cdCount;i++){if(dv.getUint32(p,true)!==0x02014b50)break;const method=dv.getUint16(p+10,true),compSize=dv.getUint32(p+20,true);const fnLen=dv.getUint16(p+28,true),exLen=dv.getUint16(p+30,true),cmLen=dv.getUint16(p+32,true);const lho=dv.getUint32(p+42,true);const name=dec.decode(u8.subarray(p+46,p+46+fnLen));entries[name]={method,compSize,lho};p+=46+fnLen+exLen+cmLen;}
+  async function read(name){const e=entries[name];if(!e)return null;const lfn=dv.getUint16(e.lho+26,true),lex=dv.getUint16(e.lho+28,true);const start=e.lho+30+lfn+lex,data=u8.subarray(start,start+e.compSize);if(e.method===0)return data;const ds=new DecompressionStream('deflate-raw');const ab=await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer();return new Uint8Array(ab);}
+  const xml=async n=>{const d=await read(n);return d?dec.decode(d):null;};
+  const DP=new DOMParser();const shared=[];const ss=await xml('xl/sharedStrings.xml');
+  if(ss){const doc=DP.parseFromString(ss,'application/xml');const sis=doc.getElementsByTagName('si');for(let i=0;i<sis.length;i++){const ts=sis[i].getElementsByTagName('t');let s='';for(let j=0;j<ts.length;j++)s+=ts[j].textContent;shared.push(s);}}
+  let sheetPath=Object.keys(entries).find(n=>/^xl\/worksheets\/sheet1\.xml$/.test(n))||Object.keys(entries).find(n=>/^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+  const sx=await xml(sheetPath);if(!sx)throw new Error('Could not read worksheet.');
+  const sd=DP.parseFromString(sx,'application/xml');const rows=sd.getElementsByTagName('row');const grid=[];
+  for(let i=0;i<rows.length;i++){const cs=rows[i].getElementsByTagName('c');const cells=[];for(let j=0;j<cs.length;j++){const c=cs[j];const ci=colIndex(c.getAttribute('r'));const t=c.getAttribute('t');let val='';if(t==='inlineStr'){const is=c.getElementsByTagName('t');for(let k=0;k<is.length;k++)val+=is[k].textContent;}else{const v=c.getElementsByTagName('v');const raw=v.length?v[0].textContent:'';val=(t==='s')?(shared[parseInt(raw,10)]||''):raw;}cells[ci]={v:val,t:t};}grid.push(cells);}
+  return grid;
+}
+function gridVals(grid){return grid.map(row=>row.map(c=>c?c.v:''));}
+async function gridFrom(file){if(/\.csv$/i.test(file.name))return parseCSV(await file.text()).map(r=>r.map(v=>({v})));return await readFirstSheet(await file.arrayBuffer());}
+function headerMap(vals,defs){
+  for(let i=0;i<Math.min(vals.length,15);i++){
+    const row=(vals[i]||[]).map(x=>String(x==null?'':x).toLowerCase().replace(/\s+/g,' ').trim());const m={};
+    for(const key in defs){if(key[0]==='_')continue;for(let ci=0;ci<row.length;ci++){const t=row[ci];if(!t)continue;if(defs[key].some(mk=>typeof mk==='string'&&t===mk)){if(m[key]==null)m[key]=ci;}}}
+    for(const key in defs){if(key[0]==='_'||m[key]!=null)continue;for(let ci=0;ci<row.length;ci++){const t=row[ci];if(!t)continue;if(defs[key].some(mk=>mk instanceof RegExp?mk.test(t):(typeof mk==='string'&&t.includes(mk)))){if(m[key]==null)m[key]=ci;}}}
+    const req=(defs.__req||Object.keys(defs).filter(k=>k[0]!=='_'));if(req.every(k=>m[k]!=null))return {m,hi:i};
+  }
+  return null;
+}
+
+/* ===== META (per-IDC rows) → grouped by inverter ===== */
+const METAKEY='solarmaster_meta_v1';let META=[];
+function metaLoad(){try{META=JSON.parse(localStorage.getItem(METAKEY)||'[]');}catch(e){META=[];}metaPill();}
+function metaPill(){const p=document.getElementById('metaPill');const sites=new Set(META.map(r=>normSite(r.site))).size;const invs=new Set(META.map(r=>normSite(r.site)+'||'+normInv(r.inv))).size;p.textContent=META.length?(META.length+' IDC rows · '+invs+' inverters · '+sites+' sites'):'Not loaded';p.className='meta-pill '+(META.length?'on':'off');const z=document.getElementById('zMeta');z.classList.toggle('ok',META.length>0);document.getElementById('bMeta').textContent=META.length?'loaded':'required';if(META.length)document.getElementById('fMeta').textContent=META.length+' IDC rows (saved)';}
+function parseMeta(grid){const vals=gridVals(grid);const h=headerMap(vals,{site:['project name','projest name','site name','site','projest','project'],inv:['inverter'],idc:['idc'],spm:['string per mppt','strings per mppt','string/mppt'],make:['inverter make','make'],dc:['dc capacity','capacity'],__req:['site','inv','make','dc']});if(!h)throw new Error('Meta header not found (need Project Name, Inverter, Make, DC Capacity).');const {m,hi}=h;const out=[];for(let r=hi+1;r<vals.length;r++){const row=vals[r];if(!row)continue;const site=String(row[m.site]==null?'':row[m.site]).trim();if(!site)continue;out.push({site,inv:String(row[m.inv]==null?'':row[m.inv]).trim(),idc:m.idc!=null?numv(row[m.idc]):0,spm:m.spm!=null?(numv(row[m.spm])||1):1,make:m.make!=null?String(row[m.make]).trim():'',dc:m.dc!=null?numv(row[m.dc]):0});}if(!out.length)throw new Error('Meta: header found but no data rows.');return out;}
+/* group per inverter */
+function metaByInverter(){
+  const inv={},siteCap={};
+  META.forEach(r=>{const sk=normSite(r.site);const ik=sk+'||'+normInv(r.inv);siteCap[sk]=(siteCap[sk]||0)+(+r.dc||0);
+    if(!inv[ik])inv[ik]={site:r.site,sk,inv:r.inv,make:r.make,cap:0,idc:{}};
+    const iv=inv[ik];iv.cap+=(+r.dc||0);if(!iv.make&&r.make)iv.make=r.make;const idn=+r.idc||0;if(idn>=1&&idn<=6)iv.idc[idn]={spm:(+r.spm||1),dc:(+r.dc||0)};});
+  return {inv,siteCap};
+}
+
+/* ===== PRODUCTION (P/E uses Weather Adj. Expectation) ===== */
+function parseProduction(grid){const vals=gridVals(grid);const h=headerMap(vals,{site:['site name','site'],dc:['capacity (kwdc)','capacity kwdc'],ac:['capacity (kwac)','capacity kwac'],exp:['weather adj. expectation','weather adj expectation','weather adjusted expectation','expected energy'],invE:['inverter net energy'],pmE:['prod meter net energy'],dsd:['dsd adj. availability','dsd adjusted availability','dsd adj availability'],__req:['site','dc','exp','invE','pmE']});if(!h)throw new Error('Production header not found (need Site Name, Capacity, Weather Adj. Expectation / Inverter Net / Prod Meter Energy).');const {m,hi}=h;const map={};for(let r=hi+1;r<vals.length;r++){const row=vals[r];if(!row)continue;const site=String(row[m.site]==null?'':row[m.site]).trim();if(!site)continue;map[normSite(site)]={site,dc:numv(row[m.dc]),ac:m.ac!=null?numv(row[m.ac]):0,exp:numv(row[m.exp]),invE:numv(row[m.invE]),pmE:numv(row[m.pmE]),dsd:m.dsd!=null?numv(row[m.dsd]):0};}return map;}
+
+/* ===== REGISTER (present/zero date sets + IDC 1-6 averages) ===== */
+function parseRegister(grid){const vals=gridVals(grid);const h=headerMap(vals,{site:['site'],inv:['inverter'],date:['date'],idc:['idc'],i1:['idc 1'],i2:['idc 2'],i3:['idc 3'],i4:['idc 4'],i5:['idc 5'],i6:['idc 6'],__req:['site','inv','idc']});if(!h)throw new Error('Register header not found (need Site, Inverter, IDC).');const {m,hi}=h;
+  const hrow=(vals[hi]||[]).map(x=>String(x==null?'':x).toLowerCase().replace(/\s+/g,' ').trim());let idcCol=m.idc;for(let ci=0;ci<hrow.length;ci++){if(hrow[ci]==='idc'){idcCol=ci;break;}}
+  const idcCols=[m.i1,m.i2,m.i3,m.i4,m.i5,m.i6];
+  const idx={};let dmin=null,dmax=null,rowCount=0;
+  for(let r=hi+1;r<grid.length;r++){const raw=grid[r];const vrow=vals[r];if(!vrow)continue;const site=String(vrow[m.site]==null?'':vrow[m.site]).trim();const inv=String(vrow[m.inv]==null?'':vrow[m.inv]).trim();if(!site||!inv)continue;rowCount++;
+    const k=normSite(site)+'||'+normInv(inv);
+    let dt=null;const dcell=raw[m.date];if(dcell){const rv=dcell.v;if(/^\d+(\.\d+)?$/.test(String(rv))&&+rv>20000&&+rv<80000)dt=xlSerial(+rv);else{const p=Date.parse(String(rv));if(!isNaN(p))dt=new Date(p);}}
+    if(!idx[k])idx[k]={site,inv,present:new Set(),zero:new Set(),idcSum:[0,0,0,0,0,0],idcCnt:[0,0,0,0,0,0]};
+    const g=idx[k];const gv=numv(vrow[idcCol]);const day=dt?isoDay(dt):null;
+    if(day)g.present.add(day);
+    if(gv===0&&day)g.zero.add(day);
+    for(let c=0;c<6;c++){const cc=idcCols[c];if(cc!=null){const val=numv(vrow[cc]);if(val>0){g.idcSum[c]+=val;g.idcCnt[c]++;}}}
+    if(dt){if(!dmin||dt<dmin)dmin=dt;if(!dmax||dt>dmax)dmax=dt;}
+  }
+  return {idx,dmin,dmax,rowCount};
+}
+
+function parseMppt(grid){const vals=gridVals(grid);const h=headerMap(vals,{site:['site'],inv:['inverter'],dcin:['dc input'],anom:['mppt anamolies','mppt anomalies','anomaly','anamoly'],__req:['site']});if(!h)return {};const {m,hi}=h;const bySite={};for(let r=hi+1;r<vals.length;r++){const row=vals[r];if(!row)continue;const site=String(row[m.site]==null?'':row[m.site]).trim();if(!site)continue;const invNo=m.inv!=null?String(row[m.inv]).trim():'';const dcin=m.dcin!=null?String(row[m.dcin]).trim():'';const anom=m.anom!=null?String(row[m.anom]).trim():'';const key=normSite(site);if(!bySite[key])bySite[key]=[];bySite[key].push('INV-'+invNo+' MPPT-'+dcin+' '+anom);}return bySite;}
+
+function stringsDown(make,dev){const t=String(make||'').toLowerCase();if(dev>=0)return 0;if(t==='cps4'||t==='solectria4'){if(dev>-0.19)return 0;if(dev>-0.33)return 1;if(dev>-0.7)return 2;if(dev>-0.85)return 3;return 4;}if(t==='cps'||t==='solectria'){if(dev>-0.25)return 0;if(dev>-0.55)return 1;if(dev>-0.75)return 2;return 3;}if(t==='sma'){if(dev>-0.35)return 0;if(dev>-0.75)return 1;return 2;}return 0;}
+function fmtD(dt){const dd=String(dt.getUTCDate()).padStart(2,'0'),mm=String(dt.getUTCMonth()+1).padStart(2,'0'),yy=String(dt.getUTCFullYear()).slice(-2);return dd+'-'+mm+'-'+yy;}
+
+/* ================= ENGINE ================= */
+function compute(){
+  const prod=window.__prod, reg=window.__reg, mppt=window.__mppt||{};
+  if(!META.length)throw new Error('Meta Data not loaded (Part 1).');
+  if(!prod)throw new Error('Production not loaded (Part 2).');
+  if(!reg)throw new Error('Register not loaded (Part 3).');
+  let ds=document.getElementById('dStart').value, de=document.getElementById('dEnd').value;
+  let d1= ds?new Date(ds+'T00:00:00Z'):reg.dmin, d2= de?new Date(de+'T00:00:00Z'):reg.dmax;
+  if(!d1||!d2)throw new Error('Round dates missing and could not be inferred from the register.');
+  const DAYS=Math.max(1,Math.round((d2-d1)/86400000)+1);const d2iso=isoDay(d2);
+  const {inv:INV,siteCap}=metaByInverter();
+  const perSite={};let invMatched=0,invMissing=0,invTotal=0;
+  for(const ik in INV){
+    const iv=INV[ik];const sk=iv.sk;const invName=iv.inv;const make=iv.make;const cap=iv.cap;const totCap=siteCap[sk]||0;
+    const g=reg.idx[ik]||null;if(g)invMatched++;else invMissing++;invTotal++;
+    const isSE=/solar\s*edge|solaredge/i.test(make)||/solar\s*edge|solaredge/i.test(invName);
+    const dataAvail=g?Math.min(1,g.present.size/DAYS):0;
+    const invAvail=g?Math.max(0,1-(g.zero.size/DAYS)):(isSE?1:0);
+    /* breakdown/comms + Restored logic */
+    let stillBD=false,stillComms=false;
+    if(!isSE){
+      if(!g){stillBD=true;} /* no register at all → treat as breakdown, still */
+      else{
+        const hadZero=g.zero.size>0;const zeroOnLast=g.zero.has(d2iso);
+        if(hadZero){stillBD=zeroOnLast;} /* restored if zeros existed but not on last day */
+        if(!hadZero){const missLast=!g.present.has(d2iso);if(g.present.size<DAYS && missLast)stillComms=true;}
+      }
+    }
+    /* STRING via IDC 1-6 deviation (only if healthy & register present) */
+    let strDown=0,strImp=0;
+    if(!isSE&&!stillBD&&!stillComms&&g){
+      const norms=[];for(let c=0;c<6;c++){const idn=c+1;const meta=iv.idc[idn];if(g.idcCnt[c]>0&&meta){const volt=g.idcSum[c]/g.idcCnt[c];norms.push({idn,val:volt/(meta.spm||1),dc:meta.dc,spm:meta.spm||1});}}
+      if(norms.length){const maxN=Math.max(...norms.map(n=>n.val));if(maxN>0){norms.forEach(n=>{const dev=(n.val-maxN)/maxN;const sd=stringsDown(make,dev);if(sd>0){strDown+=sd;strImp+=sd*(n.dc/(n.spm||1));}});}}
+    }
+    const bdImp=stillBD&&totCap>0?cap/totCap:0;
+    const commsImp=stillComms&&totCap>0?cap/totCap:0;
+    const sImp=strDown>0&&totCap>0?strImp/totCap:0;
+    const ps=perSite[sk]||(perSite[sk]={site:iv.site,invs:0,bd_cnt:0,comms_cnt:0,str_cnt:0,mppt_cnt:0,bd_imp:0,pot_imp:0,str_imp:0,bd_list:[],str_list:[],da:0,ia:0,__bdInvs:[]});
+    ps.invs++;ps.da+=dataAvail;ps.ia+=invAvail;
+    if(stillBD){ps.bd_cnt++;ps.bd_imp+=bdImp;if(cap>0&&totCap>0)ps.__bdInvs.push({name:invName,imp:cap/totCap});ps.bd_list.push(invName+' is Under Breakdown');}
+    if(stillComms){ps.comms_cnt++;ps.pot_imp+=commsImp;}
+    if(strDown>0){ps.str_cnt+=strDown;ps.str_imp+=sImp;ps.str_list.push(invName+' : '+strDown+' String Down');}
+  }
+  for(const sk in perSite){const mm=mppt[sk];if(mm&&mm.length){perSite[sk].mppt_cnt=mm.length;perSite[sk].mppt_txt=mm.join(' | ');}else perSite[sk].mppt_txt='No MPPT Voltage Anomaly';}
+  const sites=[];let prodMatched=0,prodMissing=0;
+  for(const sk in perSite){const ps=perSite[sk];const pr=prod[sk];if(pr)prodMatched++;else prodMissing++;
+    const dc=pr?pr.dc:0, ac=pr?pr.ac:0;
+    const pe=(pr&&pr.exp>0)?(pr.pmE/pr.exp):0;
+    const invpm=(pr&&pr.pmE>0)?(pr.invE/pr.pmE):0;
+    const grade=pe>=.95?5:pe>=.9?4:pe>=.8?3:pe>=.7?2:pe>0?1:null;
+    const invpmStatus=(invpm>0&&invpm>=0.95&&invpm<=1.05)?'Good':(invpm>0?'Bad':'—');
+    sites.push({site:ps.site,dc,ac,ae:pe,invpm,dsd:pr?pr.dsd:0,grade,invpm_status:invpmStatus,
+      tot_inv:ps.invs,data_avail:ps.invs?ps.da/ps.invs:0,inv_avail:ps.invs?ps.ia/ps.invs:0,
+      bd_cnt:ps.bd_cnt,str_cnt:ps.str_cnt,mppt_cnt:ps.mppt_cnt,comms_cnt:ps.comms_cnt,spare_mppt:0,
+      inv_bd_impact:Math.min(1,ps.bd_imp),pot_impact:Math.min(1,ps.pot_imp),str_impact:Math.min(1,ps.str_imp),
+      bd_txt:ps.bd_list.length?ps.bd_list.join(' | '):'No Breakdown',
+      str_txt:ps.str_list.length?ps.str_list.join(' | '):'No Anomaly',
+      mppt_txt:ps.mppt_txt||'No MPPT Voltage Anomaly',
+      comms_txt:ps.comms_cnt?('Comms issue on '+ps.comms_cnt+' inverter(s)'):'No Comm. Issue',
+      __bdInvs:ps.__bdInvs,rank:0});
+  }
+  sites.sort((a,b)=>(b.ae||0)-(a.ae||0));sites.forEach((s,i)=>s.rank=i+1);
+  window.__diag={invTotal,invMatched,invMissing,prodMatched,prodMissing,sites:sites.length,DAYS};
+  return {sites,dateRange:fmtD(d1)+' to '+fmtD(d2),DAYS,d1,d2};
+}
+
+let LAST=null;
+function renderResults(res){
+  LAST=res;const s=res.sites;
+  document.getElementById('resultCard').style.display='block';
+  document.getElementById('resSub').textContent='· 📅 '+res.dateRange+' · '+res.DAYS+' days · '+s.length+' sites (Meta‑listed only)';
+  const sum=k=>s.reduce((a,x)=>a+(+x[k]||0),0);const avg=k=>{const v=s.map(x=>+x[k]).filter(x=>isFinite(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:0;};
+  document.getElementById('summary').innerHTML=`
+    <div class="sm"><div class="l">Sites</div><div class="v">${s.length}</div></div>
+    <div class="sm"><div class="l">DC (kW)</div><div class="v">${sum('dc').toLocaleString('en-US',{maximumFractionDigits:0})}</div></div>
+    <div class="sm"><div class="l">Avg P/E</div><div class="v">${(avg('ae')*100).toFixed(1)}%</div></div>
+    <div class="sm"><div class="l">Breakdowns</div><div class="v">${sum('bd_cnt')}</div></div>
+    <div class="sm"><div class="l">String downs</div><div class="v">${sum('str_cnt')}</div></div>
+    <div class="sm"><div class="l">Comms</div><div class="v">${sum('comms_cnt')}</div></div>`;
+  const gb=g=>g?`<span class="badge g${g}">${g}</span>`:'—';
+  document.getElementById('tbody').innerHTML=s.map(x=>`<tr><td class="num">${x.rank}</td><td>${esc(x.site)}</td><td class="num">${(+x.dc).toLocaleString('en-US',{maximumFractionDigits:0})}</td><td class="num">${(+x.ac).toLocaleString('en-US',{maximumFractionDigits:0})}</td><td class="num">${(x.ae*100).toFixed(1)}%</td><td class="num">${x.invpm>0?(x.invpm*100).toFixed(1)+'%':'—'}</td><td class="num">${gb(x.grade)}</td><td class="num">${x.tot_inv}</td><td class="num">${(x.data_avail*100).toFixed(0)}%</td><td class="num">${(x.inv_avail*100).toFixed(0)}%</td><td class="num">${x.bd_cnt}</td><td class="num">${x.str_cnt}</td><td class="num">${x.comms_cnt}</td><td class="num">${(x.inv_bd_impact*100).toFixed(1)}%</td><td class="num">${(x.str_impact*100).toFixed(1)}%</td><td class="num">${(x.pot_impact*100).toFixed(1)}%</td></tr>`).join('');
+  document.getElementById('exportBtn').disabled=false;document.getElementById('projectBtn').disabled=false;
+  const dg=window.__diag;const d=document.getElementById('diag');d.className='diag show';d.innerHTML=`Diagnostics · inverters (from Meta): <b>${dg.invTotal}</b> · found in Register: <b>${dg.invMatched}</b> · missing: <b>${dg.invMissing}</b> · sites matched to Production: <b>${dg.prodMatched}/${dg.sites}</b>${dg.prodMissing?(' · Production missing: <b>'+dg.prodMissing+'</b>'):''}. <i>(Missing inverters are treated as breakdown — if high, Meta inverter names differ from register.)</i>`;
+}
+
+function status(m,t){const el=document.getElementById('status');el.className='status show '+t;el.innerHTML=m;}
+function wireZone(zoneId,inputId,onFile){const z=document.getElementById(zoneId),inp=document.getElementById(inputId);z.onclick=()=>inp.click();inp.onchange=e=>{if(e.target.files[0])onFile(e.target.files[0]);inp.value='';};['dragover','dragenter'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.add('drag');}));['dragleave','dragend'].forEach(ev=>z.addEventListener(ev,e=>{e.preventDefault();z.classList.remove('drag');}));z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)onFile(f);});}
+wireZone('zMeta','fiMeta',async f=>{try{status('⏳ Reading Meta…','info');const g=await gridFrom(f);META=parseMeta(g);try{localStorage.setItem(METAKEY,JSON.stringify(META));}catch(e){}metaPill();document.getElementById('fMeta').textContent=f.name;const invs=new Set(META.map(r=>normSite(r.site)+'||'+normInv(r.inv))).size;status('✅ Meta loaded — '+META.length+' IDC rows · '+invs+' inverters (saved). Only these sites will be analyzed.','ok');}catch(e){status('⚠️ Meta: '+esc(e.message),'err');}});
+wireZone('zProd','fiProd',async f=>{try{status('⏳ Reading Production…','info');const g=await gridFrom(f);window.__prod=parseProduction(g);document.getElementById('zProd').classList.add('ok');document.getElementById('bProd').textContent='loaded';document.getElementById('fProd').textContent=f.name+' ('+Object.keys(window.__prod).length+' sites)';status('✅ Production loaded — '+Object.keys(window.__prod).length+' sites (P/E denom = Weather Adj. Expectation).','ok');}catch(e){status('⚠️ Production: '+esc(e.message),'err');}});
+wireZone('zReg','fiReg',async f=>{try{status('⏳ Reading Register…','info');const g=await gridFrom(f);window.__reg=parseRegister(g);document.getElementById('zReg').classList.add('ok');document.getElementById('bReg').textContent='loaded';const rr=window.__reg;const dr=(rr.dmin&&rr.dmax)?(fmtD(rr.dmin)+' → '+fmtD(rr.dmax)):'';document.getElementById('fReg').textContent=f.name+' ('+rr.rowCount+' rows · '+Object.keys(rr.idx).length+' inverters)';if(rr.dmin&&!document.getElementById('dStart').value)document.getElementById('dStart').value=rr.dmin.toISOString().slice(0,10);if(rr.dmax&&!document.getElementById('dEnd').value)document.getElementById('dEnd').value=rr.dmax.toISOString().slice(0,10);status('✅ Register loaded — '+rr.rowCount+' rows · '+Object.keys(rr.idx).length+' inverters · '+dr+'.','ok');}catch(e){status('⚠️ Register: '+esc(e.message),'err');}});
+wireZone('zMppt','fiMppt',async f=>{try{status('⏳ Reading MPPT…','info');const g=await gridFrom(f);window.__mppt=parseMppt(g);document.getElementById('zMppt').classList.add('ok');document.getElementById('bMppt').textContent='loaded';const n=Object.values(window.__mppt).reduce((a,x)=>a+x.length,0);document.getElementById('fMppt').textContent=f.name+' ('+n+' anomalies)';status('✅ MPPT loaded — '+n+' anomalies.','ok');}catch(e){status('⚠️ MPPT: '+esc(e.message),'err');}});
+
+document.getElementById('runBtn').onclick=()=>{try{status('⚙️ Computing…','info');const res=compute();renderResults(res);status('✅ Computed <b>'+res.sites.length+'</b> Meta‑listed sites · 📅 '+res.dateRange+'. Review preview + diagnostics, then Project.','ok');}catch(e){status('⚠️ '+esc(e.message),'err');}};
+document.getElementById('clearBtn').onclick=()=>{window.__prod=window.__reg=window.__mppt=null;['zProd','zReg','zMppt'].forEach(id=>document.getElementById(id).classList.remove('ok'));['fProd','fReg','fMppt'].forEach(id=>document.getElementById(id).textContent='');['bProd','bReg'].forEach(id=>document.getElementById(id).textContent='required');document.getElementById('bMppt').textContent='optional';document.getElementById('resultCard').style.display='none';document.getElementById('exportBtn').disabled=true;document.getElementById('projectBtn').disabled=true;status('Inputs reset. Meta stays saved.','info');};
+document.getElementById('toggleTbl').onclick=()=>document.getElementById('tablewrap').classList.toggle('show');
+document.getElementById('exportBtn').onclick=()=>{if(!LAST)return;const esc2=s=>{s=String(s==null?'':s);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};const head=['Rank','Site','DC Capacity','AC Capacity','Actual/Exp.','INV/PM','L30D Performance Grading','Total Inverter','Data Availablity','Inverter Availability','Inverter Breakdown counts','String anaomaly count','COMMS ISSUE COUNTS','MPPT Anamoly Count','Inverter Breakdown Impact','Str. Impact','Pot. Impact','DSD Adjusted Availability','Inverter Breakdown ( Text)','String Anomaly Details (Text)','MPPT VOLTAGE ANOMALY (Text)','Communication Issue Text'];const rows=LAST.sites.map(s=>[s.rank,s.site,s.dc,s.ac,s.ae,s.invpm,s.grade,s.tot_inv,s.data_avail,s.inv_avail,s.bd_cnt,s.str_cnt,s.comms_cnt,s.mppt_cnt,s.inv_bd_impact,s.str_impact,s.pot_impact,s.dsd,s.bd_txt,s.str_txt,s.mppt_txt,s.comms_txt]);const lines=[head.map(esc2).join(',')].concat(rows.map(r=>r.map(esc2).join(',')));const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(document.getElementById('rName').value||'Round')+'_computed_summary.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},400);};
+document.getElementById('projectBtn').onclick=()=>{if(!LAST)return;const name=(document.getElementById('rName').value||('Round '+new Date().toISOString().slice(0,10)));const round={id:'r'+Date.now(),name,addedAt:Date.now(),dateRange:LAST.dateRange,sites:LAST.sites};let rounds=[];try{rounds=JSON.parse(localStorage.getItem('solarmaster_rounds_v2')||'[]');}catch(e){}rounds.unshift(round);try{localStorage.setItem('solarmaster_rounds_v2',JSON.stringify(rounds));localStorage.setItem('solarmaster_active_round_v2',round.id);}catch(e){}if(cloudReady){try{cloudDb.ref('activeRound').set({id:round.id,name:round.name,sites:round.sites,dateRange:round.dateRange,library:rounds,ts:Date.now(),by:'auto-analyze'});}catch(e){}}status('▶ Projected <b>'+esc(name)+'</b> ('+LAST.sites.length+' sites) to the dashboard'+(cloudReady?' &amp; published live to all clients':' on this device')+'. Open the dashboard to view.','ok');};
+metaLoad();initCloud();
+</script>
+</body>
+</html>
