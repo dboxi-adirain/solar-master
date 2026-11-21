@@ -859,10 +859,10 @@ function run(input){
  (input.reg||[]).forEach(r=>{const sk=nS(r.site),ik=sk+'||'+nI(r.inv);if(!sk)return;const d=toDate(r.date);
   if(!d)regNoDate++;else if(d<start||d>end){regOut++;return;}
   regRows++;
-  const g=reg[ik]||(reg[ik]={site:String(r.site).trim(),inv:String(r.inv).trim(),rows:0,days:{},zero:[],bdDates:[],sum:[0,0,0,0,0,0,0],cnt:[0,0,0,0,0,0,0]});
+  const g=reg[ik]||(reg[ik]={site:String(r.site).trim(),inv:String(r.inv).trim(),rows:0,days:{},zero:[],bdDates:[],spk:{},sum:[0,0,0,0,0,0,0],cnt:[0,0,0,0,0,0,0]});
   g.rows++;if(d)g.days[dkey(d)]=(g.days[dkey(d)]||0)+1;
   [r.idc,r.i1,r.i2,r.i3,r.i4,r.i5,r.i6].forEach((v,c)=>{const n=num(v);if(n!==null){g.sum[c]+=n;g.cnt[c]++;}});
-  const gt=num(r.idc);if(gt===0&&d)g.zero.push(d);
+  const gt=num(r.idc);if(gt!==null&&gt>121&&d)g.spk[dkey(d)]=1;if(gt===0&&d)g.zero.push(d);
   if((gt===0||r.idc===''||r.idc==null)&&d)g.bdDates.push(d);});
  const notInMeta=[];
  Object.keys(reg).forEach(ik=>{const g=reg[ik],sk=ik.split('||')[0];if(metaBy[ik]||!scope.has(sk)||!siteName[sk])return;
@@ -913,7 +913,7 @@ function run(input){
   let BB;
   if(['Register Not Found','No O&M Obligation','NA'].includes(AZ))BB='0';
   else{const parts=[];st.forEach((s,k)=>{if(eqi(s,'SPARE MPPT')||eqi(s,'0 Strings Down'))parts.push(sh+' - IDC-'+(k+1));});BB=parts.length?parts.join(', ')+' Spare MPPT':'0';}
-  const BC=(AV-P)*DAYS;
+  const BC=g?Object.keys(g.spk).length:0;
   const invShare=totCap>0?m.cap/totCap:0;
   const BD=(AX!=='No Breakdown'&&AX!=='Register Not Found'&&!/restored/i.test(AX))?invShare:0;
   const BE=(AY!=='No Comm. Issue'&&!/restored/i.test(AY))?invShare:0;
